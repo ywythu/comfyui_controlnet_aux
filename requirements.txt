@@ -12,13 +12,13 @@ pyyaml
 scikit-image
 python-dateutil
 mediapipe
-svglib
 fvcore
 yapf
 omegaconf
 ftfy
 addict
 yacs
+yapf
 trimesh[easy]
 albumentations
 scikit-learn

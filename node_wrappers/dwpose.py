@@ -2,7 +2,7 @@ from ..utils import common_annotator_call, define_preprocessor_inputs, INPUT
 import comfy.model_management as model_management
 import numpy as np
 import warnings
-from custom_controlnet_aux.dwpose import DwposeDetector, AnimalposeDetector
+from ..src.custom_controlnet_aux.dwpose import DwposeDetector, AnimalposeDetector
 import os
 import json
 
@@ -41,7 +41,7 @@ class DWPose_Preprocessor:
             detect_face=INPUT.COMBO(["enable", "disable"]),
             resolution=INPUT.RESOLUTION(),
             bbox_detector=INPUT.COMBO(
-                ["yolox_l.torchscript.pt", "yolox_l.onnx", "yolo_nas_l_fp16.onnx", "yolo_nas_m_fp16.onnx", "yolo_nas_s_fp16.onnx"],
+                ["None"] + ["yolox_l.torchscript.pt", "yolox_l.onnx", "yolo_nas_l_fp16.onnx", "yolo_nas_m_fp16.onnx", "yolo_nas_s_fp16.onnx"],
                 default="yolox_l.onnx"
             ),
             pose_estimator=INPUT.COMBO(
@@ -59,7 +59,7 @@ class DWPose_Preprocessor:
     def estimate_pose(self, image, detect_hand="enable", detect_body="enable", detect_face="enable", resolution=512, bbox_detector="yolox_l.onnx", pose_estimator="dw-ll_ucoco_384.onnx", scale_stick_for_xinsr_cn="disable", **kwargs):
         # 检查是否需要重新加载模型（当参数变化时）
         if DWPose_Preprocessor.cached_model is None or DWPose_Preprocessor.cached_bbox_detector != bbox_detector or DWPose_Preprocessor.cached_pose_estimator != pose_estimator:
-            if bbox_detector == "yolox_l.onnx":
+            if bbox_detector == "yolox_l.onnx" or bbox_detector == "None":
                 yolo_repo = DWPOSE_MODEL_NAME
             elif "yolox" in bbox_detector:
                 yolo_repo = "hr16/yolox-onnx"
@@ -81,7 +81,7 @@ class DWPose_Preprocessor:
             DWPose_Preprocessor.cached_model = DwposeDetector.from_pretrained(
                 pose_repo,
                 yolo_repo,
-                det_filename=bbox_detector, pose_filename=pose_estimator,
+                (None if bbox_detector == "None" else bbox_detector), pose_filename=pose_estimator,
                 torchscript_device=model_management.get_torch_device()
             )
             DWPose_Preprocessor.cached_bbox_detector = bbox_detector
@@ -113,7 +113,7 @@ class AnimalPose_Preprocessor:
     def INPUT_TYPES(s):
         return define_preprocessor_inputs(
             bbox_detector = INPUT.COMBO(
-                ["yolox_l.torchscript.pt", "yolox_l.onnx", "yolo_nas_l_fp16.onnx", "yolo_nas_m_fp16.onnx", "yolo_nas_s_fp16.onnx"],
+                ["None"] + ["yolox_l.torchscript.pt", "yolox_l.onnx", "yolo_nas_l_fp16.onnx", "yolo_nas_m_fp16.onnx", "yolo_nas_s_fp16.onnx"],
                 default="yolox_l.torchscript.pt"
             ),
             pose_estimator = INPUT.COMBO(
@@ -129,7 +129,9 @@ class AnimalPose_Preprocessor:
     CATEGORY = "ControlNet Preprocessors/Faces and Poses Estimators"
 
     def estimate_pose(self, image, resolution=512, bbox_detector="yolox_l.onnx", pose_estimator="rtmpose-m_ap10k_256.onnx", **kwargs):
-        if bbox_detector == "yolox_l.onnx":
+        if bbox_detector == "None":
+            yolo_repo = DWPOSE_MODEL_NAME 
+        elif bbox_detector == "yolox_l.onnx":
             yolo_repo = DWPOSE_MODEL_NAME
         elif "yolox" in bbox_detector:
             yolo_repo = "hr16/yolox-onnx"
@@ -150,7 +152,7 @@ class AnimalPose_Preprocessor:
         model = AnimalposeDetector.from_pretrained(
             pose_repo,
             yolo_repo,
-            det_filename=bbox_detector, pose_filename=pose_estimator,
+            det_filename=(None if bbox_detector == "None" else bbox_detector), pose_filename=pose_estimator,
             torchscript_device=model_management.get_torch_device()
         )
 
